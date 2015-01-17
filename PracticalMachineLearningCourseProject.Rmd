@@ -1,0 +1,94 @@
+---
+title: "Pracital Machine Learning Course Project"
+author: "Allison Silcox"
+date: "January, 2015"
+output: html_document
+---
+
+Background
+
+
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement - a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, our goal is to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: http://groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset). 
+
+Project Goal
+
+The goal of the project is to build an algorithm to predict the manner in which the exercise was done (the "classe" variable in the dataset) from the other available data - the measurements taken during the exercise.
+
+Data 
+
+
+The training data for this project are available here: https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv
+
+The test data are available here: https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv
+
+The "classe" variable in the training set is the manner in which the exercise (Unilateral Dumbbell Biceps Curl) was done: exactly according to the specification (Class A), throwing the elbows to the front (Class B), lifting the dumbbell only halfway (Class C), lowering the dumbbell only halfway (Class D) and throwing the hips to the front (Class E). Read more: http://groupware.les.inf.puc-rio.br/har#ixzz3P2ePf9CV
+
+Project assignment: use any of the other variables to predict class asignment (the 'classe' variable). Create a report describing how the model was built, how cross validation was used, what the expected out of sample error is, and choices made in modeling. Then use the prediction model to predict 20 different test cases. 
+
+
+```{r,echo=FALSE}
+#rm (list=ls())
+#setwd("C:/Users/atsilcox/Dropbox/Allison/Coursera/8_Machine_Learning/")
+```
+
+```{r}
+# download data files 
+#download.file("http://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv", destfile = "pml-training.csv")
+#download.file("http://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv", destfile = "pml-testing.csv")
+# read files into R
+pml_training <- read.csv(file = 'pml-training.csv',na.strings = c('NA','#DIV/0!','',' '))
+pml_testing <- read.csv(file = 'pml-testing.csv',na.strings = c('NA','#DIV/0!','',' '))
+```
+
+Data prep and cleaning:  Inspection of the training data shows that rows where the variable new_window='yes' (usually tied to a value change in num_window) appear to be a summary row for the prior num_window values (possibly individual observations) and a large number of fields for rows where new_window='no' have invalid (NA, missing) data which is populated only for rows where new_window='yes'.  Given that all test cases have new_window='no' values, the rows with new_window='yes' and the asociated columns with near zero values were excluded, as were the descriptive/datetime columns 1-7.
+
+```{r}
+library(caret, quietly=TRUE)
+library(randomForest, quietly=TRUE)
+pml_training2<-pml_training[pml_training$new_window=='no',-c(1:7)]
+training_nzv<- nearZeroVar(pml_training2, saveMetrics=TRUE)
+pml_training3<-pml_training2[,!training_nzv$nzv]
+```
+
+Training and validation data sets:  To build and then validate the model the training dataset was split into training (70%) and validation (30%) sets.
+
+```{r}
+set.seed(5486)
+inTrain <- createDataPartition(y=pml_training3$classe, p = 0.7)[[1]]
+training = pml_training3[ inTrain,]
+validation = pml_training3[-inTrain,]
+```
+
+Next a random forest model was built using the randomForest R package on the training dataset. Random forests have been shown to be a top performing algorithm for classification predictions.
+
+```{r}
+#mod_rf <- train(classe ~ .,data = training, method = 'rf', 
+#                trControl = trainControl(method = "cv",number = 4,))
+model_rf <- randomForest(classe ~ ., data = training)
+model_rf
+```
+
+The deveoped model was then applied to the cross-validation set. A confusion matrix comparing the actual to predicted classifications in the validation data set shows an Accurcy of 0.9957.  
+
+
+```{r}
+pred_rf <- predict(model_rf,validation)
+cm_rf <- confusionMatrix(pred_rf,validation$classe)
+cm_rf
+```
+
+Out of Sample Error: i.e. the error rate you get on a new data set = 1 - Accuracy for predictions on new data (test/validation set).  The expected Out of Sample Error here is 1-0.9957 = 0.0043.
+
+```{r}
+1-cm_rf$overall["Accuracy"]   ## Out of Sample Error = 1 - Accuracy
+```
+
+Applying the prediction algorithm to the 20 cases in the testing provided testing sample:  First clean the testing dataset and then apply the prediction model.  
+
+```{r}
+pml_testing2<-pml_testing[pml_testing$new_window=='no',-c(1:7)]
+testing_nzv<- nearZeroVar(pml_testing2, saveMetrics=TRUE)
+pml_testing3<-pml_testing2[,!testing_nzv$nzv]
+pred_test <- predict(model_rf,pml_testing)
+pred_test
+```
