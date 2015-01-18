@@ -27,8 +27,8 @@ Project assignment: use any of the other variables to predict class asignment (t
 
 
 ```{r,echo=FALSE}
-#rm (list=ls())
-#setwd("C:/Users/atsilcox/Dropbox/Allison/Coursera/8_Machine_Learning/")
+rm (list=ls())
+setwd("C:/Users/atsilcox/Dropbox/Allison/Coursera/8_Machine_Learning/")
 ```
 
 ```{r}
@@ -44,7 +44,6 @@ Data prep and cleaning:  Inspection of the training data shows that rows where t
 
 ```{r}
 library(caret, quietly=TRUE)
-library(randomForest, quietly=TRUE)
 pml_training2<-pml_training[pml_training$new_window=='no',-c(1:7)]
 training_nzv<- nearZeroVar(pml_training2, saveMetrics=TRUE)
 pml_training3<-pml_training2[,!training_nzv$nzv]
@@ -59,36 +58,65 @@ training = pml_training3[ inTrain,]
 validation = pml_training3[-inTrain,]
 ```
 
-Next a random forest model was built using the randomForest R package on the training dataset. Random forests have been shown to be a top performing algorithm for classification predictions.
+In exploring the data source website for background information - e.g. explanation of the data - measurements, classifications, etc. - the associated research paper described success using a random forest classification approach.  Random forests have been shown to be a top performing algorithm for classification predictions and this method proved very accurate here. (Note: a CART approach - single classification tree rather than ensembling trees as in random forests - was also tested using the caret R package (method="rpart") but produced much lower accuracy - see Appendix).
+
+A random forest model was built on the training dataset using the caret R package with method="rf".  4-fold cross-validation was used in building the model (repeats=4 also). The selected final model (selected based on highest Accuracy) shows Accuracy of 0.9894 and OOB (out-of-bag) estimate of error rate of 0.71%.
 
 ```{r}
-#mod_rf <- train(classe ~ .,data = training, method = 'rf', 
-#                trControl = trainControl(method = "cv",number = 4,))
-model_rf <- randomForest(classe ~ ., data = training)
-model_rf
+model_crf <- train(classe ~ .,data = training, method = 'rf', 
+                trControl = trainControl(method = "cv",number = 4,))
+model_crf
+model_crf$finalModel
 ```
 
-The deveoped model was then applied to the cross-validation set. A confusion matrix comparing the actual to predicted classifications in the validation data set shows an Accurcy of 0.9957.  
-
+The deveoped model was then applied to the validation set. A confusion matrix comparing the actual to predicted classifications in the validation data set shows an Accurcy of 0.9941 for the validation set.
 
 ```{r}
-pred_rf <- predict(model_rf,validation)
-cm_rf <- confusionMatrix(pred_rf,validation$classe)
-cm_rf
+pred_crf <- predict(model_crf,validation)
+cm_crf <- confusionMatrix(pred_crf,validation$classe)
+cm_crf
 ```
 
-Out of Sample Error: i.e. the error rate you get on a new data set = 1 - Accuracy for predictions on new data (test/validation set).  The expected Out of Sample Error here is 1-0.9957 = 0.0043.
+Out of Sample Error: i.e. the error rate you get on a new data set = 1 - Accuracy for predictions on new data (test/validation set).  The expected Out of Sample Error here is 1-0.9941 = 0.0059 (0.59%).
 
 ```{r}
-1-cm_rf$overall["Accuracy"]   ## Out of Sample Error = 1 - Accuracy
+1-cm_crf$overall["Accuracy"]   ## Out of Sample Error = 1 - Accuracy
 ```
 
-Applying the prediction algorithm to the 20 cases in the testing provided testing sample:  First clean the testing dataset and then apply the prediction model.  
+Applying the prediction algorithm to the 20 cases in the provided testing sample:  First clean the testing dataset and then apply the prediction model.  
 
 ```{r}
 pml_testing2<-pml_testing[pml_testing$new_window=='no',-c(1:7)]
 testing_nzv<- nearZeroVar(pml_testing2, saveMetrics=TRUE)
 pml_testing3<-pml_testing2[,!testing_nzv$nzv]
-pred_test <- predict(model_rf,pml_testing)
+pred_test <- predict(model_crf,pml_testing)
 pred_test
+```
+</p>   
+
+**********************************************     Appendix:    **********************************************     
+</p>    
+
+Plot of final random forest model error: classification error decreases as # trees increases.  Black = OOB error, colors = each of the classification values (A,B,C,D,E).
+
+```{r}
+plot(model_crf$finalModel,main="Random Forest Model using caret(method=rf)")
+```
+
+Top contributing predictors in the final model:
+
+```{r}
+varImp(model_crf)
+```
+</p>   
+
+CART classification model using caret(method="rpart"):  Accuracy on the validation set is much lower than random forest method (0.4951). 
+
+```{r}
+model_rpart <- train(classe ~ .,data = training,method="rpart")
+model_rpart
+print(model_rpart$finalModel)
+confusionMatrix(predict(model_rpart,validation),validation$classe)
+plot(model_rpart$finalModel, uniform=TRUE)
+text(model_rpart$finalModel, use.n=TRUE, all=TRUE, cex=.8)
 ```
