@@ -60,7 +60,7 @@ validation = pml_training3[-inTrain,]
 
 In exploring the data source website for background information - e.g. explanation of the data - measurements, classifications, etc. - the associated research paper described success using a random forest classification approach.  Random forests have been shown to be a top performing algorithm for classification predictions and this method proved very accurate here. (Note: a CART approach - single classification tree rather than ensembling trees as in random forests - was also tested using the caret R package (method="rpart") but produced much lower accuracy - see Appendix).
 
-A random forest model was built on the training dataset using the caret R package with method="rf".  4-fold cross-validation was used in building the model (repeats=4 also). The selected final model (selected based on highest Accuracy) shows Accuracy of 0.9894 and OOB (out-of-bag) estimate of error rate of 0.71%.
+A random forest model was built on the training dataset using the caret R package with method="rf".  4-fold cross-validation was used in building the model (repeats=1 cv default). The selected final model (selected based on highest Accuracy) shows Accuracy of 0.9894 and OOB (out-of-bag) estimate of error rate of 0.71%.
 
 ```{r}
 model_crf <- train(classe ~ .,data = training, method = 'rf', 
